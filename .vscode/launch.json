@@ -1,0 +1,36 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Duo Scaffold Example",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "${workspaceFolder}/example",
+      "program": "${workspaceFolder}/example/lib/main.dart"
+    },
+    {
+      "name": "Duo Scaffold Example (Chrome)",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "${workspaceFolder}/example",
+      "program": "${workspaceFolder}/example/lib/main.dart",
+      "deviceId": "chrome"
+    },
+    {
+      "name": "Duo Scaffold Example (iOS)",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "${workspaceFolder}/example",
+      "program": "${workspaceFolder}/example/lib/main.dart",
+      "deviceId": "ios"
+    },
+    {
+      "name": "Duo Scaffold Example (macOS)",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "${workspaceFolder}/example",
+      "program": "${workspaceFolder}/example/lib/main.dart",
+      "deviceId": "macos"
+    }
+  ]
+}
