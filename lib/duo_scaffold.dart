@@ -7,3 +7,4 @@ export 'src/duo_device.dart';
 export 'src/duo_hinge.dart';
 export 'src/duo_layout.dart';
 export 'src/duo_safe_area.dart';
+export 'src/duo_scaffold_plugin.dart';

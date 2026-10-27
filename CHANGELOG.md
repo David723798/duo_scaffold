@@ -1,3 +1,10 @@
+## 0.3.2
+
+* Declare Android, web, macOS, Windows, and Linux as supported plugin
+  platforms again. Since 0.3.0 the package declared only iOS, so pub.dev
+  listed it as iOS-only although layout works everywhere. These platforms
+  register a no-op `DuoScaffoldPlugin`; the hinge is still read only on iOS.
+
 ## 0.3.1
 
 * On the web, `DuoScaffold` and `DuoBody` read the browser's safe-area insets
