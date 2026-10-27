@@ -1,3 +1,14 @@
+## 0.3.1
+
+* On the web, `DuoScaffold` and `DuoBody` read the browser's safe-area insets
+  (`env(safe-area-inset-*)`), which Flutter's web engine does not report, and
+  follow them as they change, including after rotation. An installed web app
+  on iPhone Duo with `viewport-fit=cover` now detects the device, meets its
+  panes at the crease, and places the rail in the status strip.
+* The example web app fills the whole screen when installed, including the
+  status strip and the strip below the home indicator (`100lvh`), stays
+  correct when iPhone Duo unfolds, and allows landscape.
+
 ## 0.3.0
 
 * Detect iPhone Duo's book and tabletop postures from the hinge. The package

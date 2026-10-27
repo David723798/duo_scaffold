@@ -17,12 +17,13 @@
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Interactive DuoScaffold Mail example.">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Duo Scaffold">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
@@ -31,8 +32,41 @@
 
   <title>Duo Scaffold Mail</title>
   <link rel="manifest" href="manifest.json">
+  <style>
+    html, body { margin: 0; overflow: hidden; background: #fff; }
+    #app { position: fixed; top: 0; right: 0; bottom: 0; left: 0; }
+    .standalone #app { bottom: auto; height: 100vh; height: 100lvh; }
+  </style>
 </head>
 <body>
-  <script src="flutter_bootstrap.js" async></script>
+  <!--
+    Flutter renders into #app rather than taking over the page, so this page
+    keeps viewport-fit=cover and sizes the app itself.
+
+    iOS reports an installed web app's viewport without the strip below the
+    home indicator, so Flutter would be shorter than the screen and miss
+    iPhone Duo's displays (951 × 669 inner, 466 × 678 cover). In standalone
+    mode the app takes the large viewport height (100lvh), which covers that
+    strip and stays correct when iPhone Duo unfolds.
+  -->
+  <div id="app"></div>
+  <script>
+    // Earlier builds registered Flutter's service worker, which can keep an
+    // installed app on stale files. This page does not use one.
+    navigator.serviceWorker?.getRegistrations().then(async (registrations) => {
+      if (registrations.length === 0) return;
+      await Promise.all(registrations.map((r) => r.unregister()));
+      const keys = await caches.keys();
+      await Promise.all(keys.map((key) => caches.delete(key)));
+      location.reload();
+    });
+
+    if (navigator.standalone ||
+        matchMedia('(display-mode: standalone)').matches ||
+        matchMedia('(display-mode: fullscreen)').matches) {
+      document.documentElement.classList.add('standalone');
+    }
+  </script>
+  <script src="flutter_bootstrap.js?v=6" async></script>
 </body>
 </html>

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'duo_device.dart';
 import 'duo_hinge.dart';
+import 'duo_web_insets.dart';
 
 /// Where adaptive application controls are displayed.
 ///
@@ -264,7 +265,10 @@ class DuoScaffold extends StatelessWidget {
   topAndBottomBuilder;
 
   @override
-  Widget build(BuildContext context) => DuoHingeScope.ensure(context, _build);
+  Widget build(BuildContext context) => ensureWebInsets(
+    context,
+    (BuildContext context) => DuoHingeScope.ensure(context, _build),
+  );
 
   Widget _build(BuildContext context) {
     assert(() {

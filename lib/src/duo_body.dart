@@ -6,6 +6,7 @@ import 'duo_device.dart';
 import 'duo_hinge.dart';
 import 'duo_layout.dart';
 import 'duo_safe_area.dart';
+import 'duo_web_insets.dart';
 
 /// Lays out primary and secondary content using a [DuoLayout].
 ///
@@ -69,7 +70,10 @@ class DuoBody extends StatelessWidget {
   final bool maintainBottomViewPadding;
 
   @override
-  Widget build(BuildContext context) => DuoHingeScope.ensure(context, _build);
+  Widget build(BuildContext context) => ensureWebInsets(
+    context,
+    (BuildContext context) => DuoHingeScope.ensure(context, _build),
+  );
 
   Widget _build(BuildContext context) {
     final MediaQueryData mediaQuery = MediaQuery.of(context);

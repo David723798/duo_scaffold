@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'duo_scaffold'
-  s.version          = '0.3.0'
+  s.version          = '0.3.1'
   s.summary          = 'Hinge state for duo_scaffold.'
   s.description      = 'Reports the device hinge to duo_scaffold through UIHingeInteraction.'
   s.homepage         = 'https://github.com/David723798/duo_scaffold'
