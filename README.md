@@ -72,6 +72,15 @@ class _MailPageState extends State<MailPage> {
 
 On compact layouts, `compactPane` selects the visible pane. On expanded landscape or book layouts, both panes appear side by side. Inactive compact panes remain mounted, so their local widget state is retained, but they are offstage, cannot receive focus, and do not tick animations. The same pane elements are retained when switching presentation, including from compact to book or tabletop.
 
+## iPhone Duo
+
+iOS does not report display features to Flutter, so `duo_scaffold` recognises iPhone Duo's inner display (951 × 669 logical pixels at 3×) and its portrait cover display (466 × 678), and fills in what the platform leaves out:
+
+- **Crease.** `DuoBody` and `DuoDeviceProfile.displayFeaturesOf(context)` supply the vertical crease at the screen centre. Expanded landscape panes meet at the crease instead of at the middle of the remaining content area. The hinge angle is not available, so the crease never selects book or tabletop on its own.
+- **Shared control region.** On the inner display in landscape, and always on the cover, iOS reserves a full-height strip on the right for the camera and status bar. `DuoScaffold` places its rail inside that strip, below the status cluster, instead of beside it. On the cover this applies even though the display is narrower than `sideRailBreakpoint`, so the page gets the full height instead of an app bar and bottom bar squeezed beside the strip.
+
+Detection only matches a full-screen window on iOS. Wrap a subtree in `DuoDeviceScope` to override detection, for example `DuoDeviceScope(profile: null, child: ...)` to disable it, or `DuoDeviceScope(profile: DuoDeviceProfile.iPhoneDuo, child: ...)` to force it (`DuoDeviceProfile.iPhoneDuoCover` for the cover). An explicit `platformLayout` or `chromeLayout` still takes precedence over the device's rail edge.
+
 ## Choose the right widget
 
 | Need | Use |
@@ -79,6 +88,7 @@ On compact layouts, `compactPane` selects the visible pane. On expanded landscap
 | Adapt a primary and optional secondary pane in an existing page | `DuoBody` |
 | Move declared actions and destinations between top-and-bottom controls and a physical side rail | `DuoScaffold` |
 | Apply the same safe-area behaviour to a custom Scaffold slot | `DuoSafeArea` |
+| Read or override device facts the platform does not report, such as iPhone Duo's crease | `DuoDeviceProfile`, `DuoDeviceScope` |
 
 ## Layout behaviour
 
@@ -86,6 +96,7 @@ On compact layouts, `compactPane` selects the visible pane. On expanded landscap
 | --- | --- | --- |
 | Width below 600 logical pixels | Compact portrait or landscape | One pane selected by `compactPane` |
 | Width at least 600 and room for two 280 px panes | Expanded portrait or landscape | Two panes only in expanded landscape; expanded portrait uses the compact presentation |
+| Flat or unknown-posture vertical fold, such as iPhone Duo's crease | Expanded landscape | Two panes that meet at the fold, when each side has room for a pane |
 | Half-open vertical fold or hinge | Book | Two horizontal panes around the feature |
 | Half-open horizontal fold or hinge | Tabletop | `tabletopTop` and `tabletopBottom`, when either is supplied |
 
@@ -200,7 +211,7 @@ DuoScaffold(
 )
 ```
 
-`DuoChromePolicy` remains available for sharing a policy across pages. The package itself does not detect native hardware control regions.
+`DuoChromePolicy` remains available for sharing a policy across pages. Apart from the [iPhone Duo](#iphone-duo) profile, the package does not detect native hardware control regions.
 
 ## `DuoScaffold` properties
 
@@ -221,7 +232,7 @@ DuoScaffold(
 | `policy` | `DuoChromePolicy` | Resolves top-and-bottom, left-rail, or right-rail chrome. Defaults to `const DuoChromePolicy()`. |
 | `chromeLayout` | `DuoChromeLayout?` | Forces the control placement. Takes precedence over `policy.layoutOverride`. |
 | `sideRailBreakpoint` | `double?` | Width at which controls move to a side rail. Takes precedence over `policy.sideRailBreakpoint`. |
-| `platformLayout` | `DuoChromeLayout?` | Optional application-provided platform layout passed to `policy` during resolution. |
+| `platformLayout` | `DuoChromeLayout?` | Optional application-provided platform layout passed to `policy` during resolution. Defaults to the system-region edge of a recognised `DuoDeviceProfile`, such as iPhone Duo in landscape. |
 | `actions` | `List<DuoAction>` | Side-rail actions placed near the top. They are sorted by `visibilityPriority`; overflow actions move into a menu. Defaults to an empty list. |
 | `leadingAction` | `DuoAction?` | First control in a side rail. Overrides the automatic drawer menu button. |
 | `footerActions` | `List<DuoAction>` | Side-rail actions placed near the bottom, above destinations; suited to primary content actions. Defaults to an empty list. |

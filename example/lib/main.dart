@@ -239,26 +239,33 @@ class _MailDemoPageState extends State<MailDemoPage> {
         final DuoLayoutInfo layout = policy.resolve(
           chromeInfo.contentSize,
           displayFeatures: _previewLayout == null
-              ? MediaQuery.displayFeaturesOf(
-                  context,
-                ).map(DuoDisplayFeature.fromDisplayFeature)
+              ? DuoDeviceProfile.displayFeaturesOf(context)
               : _previewFeatures(_previewLayout!),
         );
         return Column(
           children: <Widget>[
             _LayoutStatus(
+              device: DuoDeviceProfile.of(context),
               layout: layout,
               previewing: _previewLayout != null,
               chromeLayout: chromeInfo.layout,
             ),
+            // The status banner has already consumed the top safe area. The
+            // Builder reads padding after DuoScaffold has removed the rail's.
             Expanded(
-              child: _MailBody(
-                layout: layout,
-                messages: _visibleMessages,
-                selectedMessage: _selectedMessage,
-                showInbox: _isShowingInbox,
-                onSelect: _selectMessage,
-                onBack: _showInbox,
+              child: Builder(
+                builder: (BuildContext context) => MediaQuery.removePadding(
+                  context: context,
+                  removeTop: true,
+                  child: _MailBody(
+                    layout: layout,
+                    messages: _visibleMessages,
+                    selectedMessage: _selectedMessage,
+                    showInbox: _isShowingInbox,
+                    onSelect: _selectMessage,
+                    onBack: _showInbox,
+                  ),
+                ),
               ),
             ),
           ],
@@ -519,11 +526,13 @@ class _AttachmentPane extends StatelessWidget {
 
 class _LayoutStatus extends StatelessWidget {
   const _LayoutStatus({
+    required this.device,
     required this.layout,
     required this.previewing,
     required this.chromeLayout,
   });
 
+  final DuoDeviceProfile? device;
   final DuoLayoutInfo layout;
   final bool previewing;
   final DuoChromeLayout chromeLayout;
@@ -532,10 +541,13 @@ class _LayoutStatus extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     width: double.infinity,
     color: Theme.of(context).colorScheme.surfaceContainerHigh,
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-    child: Text(
-      '${_layoutLabel(layout.layout)} · ${_chromeLayoutLabel(chromeLayout)} controls · ${layout.size.width.round()} × ${layout.size.height.round()}${previewing ? ' · simulated' : ''}',
-      style: Theme.of(context).textTheme.labelMedium,
+    child: DuoSafeArea(
+      bottom: false,
+      minimum: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Text(
+        '${device == null ? '' : '${device!.name} · '}${_layoutLabel(layout.layout)} · ${_chromeLayoutLabel(chromeLayout)} controls · ${layout.size.width.round()} × ${layout.size.height.round()}${previewing ? ' · simulated' : ''}',
+        style: Theme.of(context).textTheme.labelMedium,
+      ),
     ),
   );
 }

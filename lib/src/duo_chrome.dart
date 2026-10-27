@@ -1,4 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+
+import 'duo_device.dart';
 
 /// Where adaptive application controls are displayed.
 ///
@@ -9,8 +13,9 @@ enum DuoChromeLayout { topAndBottom, leftRail, rightRail }
 
 /// Selects an adaptive layout for application controls.
 ///
-/// A wide viewport uses a physical right rail by default. This is a Flutter
-/// layout decision, not detection of an iPhone Duo system control region.
+/// A wide viewport uses a physical right rail by default. [DuoScaffold]
+/// supplies the side that holds the system region as [platformLayout] on a
+/// recognised [DuoDeviceProfile], such as iPhone Duo in landscape.
 /// Applications can inject a verified platform value through
 /// [platformLayout], or force a value with [layoutOverride].
 @immutable
@@ -164,6 +169,10 @@ class DuoDestination {
 /// [bottomNavigationBar], and [floatingActionButton] appear in top-and-bottom
 /// mode; rail modes use the declared actions and destinations instead.
 /// [drawer] follows the physical rail edge automatically.
+///
+/// On a recognised [DuoDeviceProfile] whose system status bar occupies a side
+/// strip, such as iPhone Duo in landscape, the rail moves into that strip and
+/// shares it with the status cluster instead of sitting beside it.
 class DuoScaffold extends StatelessWidget {
   const DuoScaffold({
     super.key,
@@ -224,6 +233,9 @@ class DuoScaffold extends StatelessWidget {
   /// Width at which controls move to a side rail.
   final double? sideRailBreakpoint;
 
+  /// Application-provided platform layout.
+  ///
+  /// When omitted, a recognised [DuoDeviceProfile] supplies one.
   final DuoChromeLayout? platformLayout;
   final List<DuoAction> actions;
 
@@ -268,12 +280,21 @@ class DuoScaffold extends StatelessWidget {
       }
       return true;
     }());
+    final DuoDeviceProfile? device = DuoDeviceProfile.of(context);
+    final DuoChromeLayout? deviceLayout = device?.chromeLayout(
+      MediaQuery.of(context),
+    );
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final DuoChromeLayout layout = _resolvedPolicy.resolve(
           size: constraints.biggest,
-          platformLayout: platformLayout,
+          platformLayout: platformLayout ?? deviceLayout,
         );
+        // The rail shares the device's side system region only on its edge.
+        final double? sharedStatusExtent =
+            deviceLayout != null && layout == deviceLayout
+            ? device!.systemStatusExtent
+            : null;
         final bool horizontal = layout == DuoChromeLayout.topAndBottom;
         final DuoDrawerSlots slots = DuoDrawerSlots.forLayout(
           layout: layout,
@@ -295,7 +316,12 @@ class DuoScaffold extends StatelessWidget {
           resizeToAvoidBottomInset: resizeToAvoidBottomInset,
           body: LayoutBuilder(
             builder: (BuildContext context, BoxConstraints bodyConstraints) =>
-                _buildBody(context, bodyConstraints, layout),
+                _buildBody(
+                  context,
+                  bodyConstraints,
+                  layout,
+                  sharedStatusExtent,
+                ),
           ),
         );
       },
@@ -371,6 +397,7 @@ class DuoScaffold extends StatelessWidget {
     BuildContext context,
     BoxConstraints constraints,
     DuoChromeLayout layout,
+    double? sharedStatusExtent,
   ) {
     final EdgeInsets padding = MediaQuery.paddingOf(context);
     final double edgeInset = layout == DuoChromeLayout.leftRail
@@ -378,16 +405,18 @@ class DuoScaffold extends StatelessWidget {
         : layout == DuoChromeLayout.rightRail
         ? padding.right
         : 0;
+    final double railExtent = _DuoSideRail.extent(
+      railWidth,
+      edgeInset,
+      shared: sharedStatusExtent != null,
+    );
     final DuoChromeInfo info = DuoChromeInfo(
       layout: layout,
       railWidth: railWidth,
       contentSize: layout == DuoChromeLayout.topAndBottom
           ? constraints.biggest
           : Size(
-              (constraints.maxWidth - railWidth - edgeInset).clamp(
-                0,
-                double.infinity,
-              ),
+              (constraints.maxWidth - railExtent).clamp(0, double.infinity),
               constraints.maxHeight,
             ),
     );
@@ -417,6 +446,7 @@ class DuoScaffold extends StatelessWidget {
       onDestinationSelected: onDestinationSelected,
       color: sideRailColor,
       maxVisibleActions: maxVisibleActions,
+      sharedStatusExtent: sharedStatusExtent,
     );
     // The child keeps the inherited text direction. `left` and `right` are
     // expressed by the order of this Row, so they remain physical edges.
@@ -464,7 +494,15 @@ class _DuoSideRail extends StatelessWidget {
     required this.onDestinationSelected,
     required this.color,
     required this.maxVisibleActions,
+    required this.sharedStatusExtent,
   });
+
+  /// Total width including the edge inset the rail occupies.
+  static double extent(
+    double width,
+    double edgeInset, {
+    required bool shared,
+  }) => shared ? math.max(width, edgeInset) : width + edgeInset;
 
   final double width;
   final DuoChromeLayout layout;
@@ -476,6 +514,10 @@ class _DuoSideRail extends StatelessWidget {
   final ValueChanged<String>? onDestinationSelected;
   final Color? color;
   final int maxVisibleActions;
+
+  /// When set, the rail lies inside the side system region and its controls
+  /// start below the system status cluster of this extent.
+  final double? sharedStatusExtent;
 
   @override
   Widget build(BuildContext context) {
@@ -503,15 +545,18 @@ class _DuoSideRail extends StatelessWidget {
         _destinationButton(context, destination),
     ];
 
-    return SizedBox(
-      width: width + edgeInset,
-      child: SafeArea(
-        left: layout == DuoChromeLayout.leftRail,
-        right: layout == DuoChromeLayout.rightRail,
-        child: SizedBox(
-          width: width,
-          child: Material(
-            color: color ?? Theme.of(context).colorScheme.surfaceContainer,
+    final bool shared = sharedStatusExtent != null;
+    // The background reaches the screen edges; only the controls avoid
+    // system insets.
+    return Material(
+      color: color ?? Theme.of(context).colorScheme.surfaceContainer,
+      child: SizedBox(
+        width: extent(width, edgeInset, shared: shared),
+        child: SafeArea(
+          left: !shared && layout == DuoChromeLayout.leftRail,
+          right: !shared && layout == DuoChromeLayout.rightRail,
+          child: Padding(
+            padding: EdgeInsets.only(top: sharedStatusExtent ?? 0),
             child: LayoutBuilder(
               builder: (BuildContext context, BoxConstraints constraints) {
                 // Keep footer controls at the physical bottom where there is

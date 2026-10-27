@@ -18,6 +18,7 @@ flutter run
 | Simulated book and tabletop hinge | `DuoDisplayFeature` | Shows that book and tabletop come from half-open display features, not window shape. |
 | App-bar actions, bottom navigation, and side rail | `DuoScaffold` | Preserves top-and-bottom controls on narrow windows and moves declared controls to a physical rail on wide windows. |
 | Drawer button and drawer edge | `DuoScaffold.drawer` | Keeps the drawer on the same physical edge as the side rail. |
+| iPhone Duo label in the layout banner | `DuoDeviceProfile` | On iPhone Duo, the panes meet at the crease and the landscape rail moves into the status-bar strip. |
 
 `MailDemoPage` owns the selected mailbox, selected message, and compact inbox/detail state. `DuoBody` only decides which panes are visible. Keep domain and navigation state in the page or its state-management layer, then pass the current compact pane to `DuoBody`.
 

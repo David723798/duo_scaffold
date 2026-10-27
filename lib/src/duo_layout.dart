@@ -54,7 +54,11 @@ class DuoLayoutInfo {
   final DuoLayout layout;
   final Size size;
 
-  /// Bounds of the half-open fold or hinge in local layout coordinates.
+  /// Bounds of the fold or hinge in local layout coordinates.
+  ///
+  /// For book and tabletop this is the half-open feature that selected the
+  /// layout. For expanded landscape it is a flat or unknown-posture vertical
+  /// fold that the two panes should meet at, such as iPhone Duo's crease.
   final Rect? foldBounds;
 
   DuoPanePresentation get presentation => switch (layout) {
@@ -90,21 +94,29 @@ class DuoLayoutPolicy {
     }
     DuoDisplayFeature? vertical;
     DuoDisplayFeature? horizontal;
+    DuoDisplayFeature? flatVertical;
     for (final DuoDisplayFeature feature in displayFeatures) {
-      if ((feature.type != DisplayFeatureType.fold &&
-              feature.type != DisplayFeatureType.hinge) ||
-          feature.state != DisplayFeatureState.postureHalfOpened) {
+      if (feature.type != DisplayFeatureType.fold &&
+          feature.type != DisplayFeatureType.hinge) {
         continue;
       }
       final Rect bounds = feature.bounds.intersect(Offset.zero & size);
       // A feature must span the usable viewport. A small cutout or a feature
       // outside a nested body is not a two-pane boundary.
-      if (bounds.height >= size.height && bounds.width < size.width) {
-        vertical ??= feature;
+      final bool spansHeight =
+          bounds.height >= size.height && bounds.width < size.width;
+      final bool spansWidth =
+          bounds.width >= size.width && bounds.height < size.height;
+      if (feature.state != DisplayFeatureState.postureHalfOpened) {
+        if (spansHeight &&
+            feature.bounds.left >= 0 &&
+            feature.bounds.right <= size.width) {
+          flatVertical ??= feature;
+        }
+        continue;
       }
-      if (bounds.width >= size.width && bounds.height < size.height) {
-        horizontal ??= feature;
-      }
+      if (spansHeight) vertical ??= feature;
+      if (spansWidth) horizontal ??= feature;
     }
     final DuoDisplayFeature? postureFeature = vertical ?? horizontal;
     if (layoutOverride != null) {
@@ -130,15 +142,25 @@ class DuoLayoutPolicy {
     }
     final bool canExpand =
         size.width >= expandedBreakpoint && size.width >= minimumPaneExtent * 2;
+    final DuoLayout layout = canExpand
+        ? (size.width >= size.height
+              ? DuoLayout.expandedLandscape
+              : DuoLayout.expandedPortrait)
+        : (size.width >= size.height
+              ? DuoLayout.compactLandscape
+              : DuoLayout.compactPortrait);
+    // A flat crease does not change the posture, but panes that meet at it
+    // avoid content straddling the fold.
+    final Rect? crease = flatVertical?.bounds;
+    final bool alignToCrease =
+        layout == DuoLayout.expandedLandscape &&
+        crease != null &&
+        crease.left >= minimumPaneExtent &&
+        size.width - crease.right >= minimumPaneExtent;
     return DuoLayoutInfo(
-      layout: canExpand
-          ? (size.width >= size.height
-                ? DuoLayout.expandedLandscape
-                : DuoLayout.expandedPortrait)
-          : (size.width >= size.height
-                ? DuoLayout.compactLandscape
-                : DuoLayout.compactPortrait),
+      layout: layout,
       size: size,
+      foldBounds: alignToCrease ? crease : null,
     );
   }
 }

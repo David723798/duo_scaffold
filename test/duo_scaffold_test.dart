@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:duo_scaffold/duo_scaffold.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -93,6 +94,206 @@ void main() {
           .layout,
       DuoLayout.expandedLandscape,
     );
+  });
+
+  test('aligns expanded landscape panes to a flat crease', () {
+    final DuoLayoutInfo info = policy.resolve(
+      const Size(867, 669),
+      displayFeatures: <DuoDisplayFeature>[
+        feature(
+          const Rect.fromLTWH(475.5, 0, 0, 669),
+          DisplayFeatureState.unknown,
+        ),
+      ],
+    );
+    expect(info.layout, DuoLayout.expandedLandscape);
+    expect(info.foldBounds, const Rect.fromLTWH(475.5, 0, 0, 669));
+    // A crease that would leave a pane below the minimum extent is ignored.
+    expect(
+      policy
+          .resolve(
+            const Size(867, 669),
+            displayFeatures: <DuoDisplayFeature>[
+              feature(
+                const Rect.fromLTWH(700, 0, 0, 669),
+                DisplayFeatureState.postureFlat,
+              ),
+            ],
+          )
+          .foldBounds,
+      isNull,
+    );
+  });
+
+  group('iPhone Duo profile', () {
+    const MediaQueryData landscape = MediaQueryData(
+      size: Size(951, 669),
+      devicePixelRatio: 3,
+      padding: EdgeInsets.only(right: 84, bottom: 34),
+      viewPadding: EdgeInsets.only(right: 84, bottom: 34),
+    );
+    const MediaQueryData portrait = MediaQueryData(
+      size: Size(669, 951),
+      devicePixelRatio: 3,
+      padding: EdgeInsets.only(top: 82, bottom: 34),
+      viewPadding: EdgeInsets.only(top: 82, bottom: 34),
+    );
+
+    const MediaQueryData cover = MediaQueryData(
+      size: Size(466, 678),
+      devicePixelRatio: 3,
+      padding: EdgeInsets.only(right: 84, bottom: 34),
+      viewPadding: EdgeInsets.only(right: 84, bottom: 34),
+    );
+
+    test('is detected only for full-screen iOS displays', () {
+      expect(
+        DuoDeviceProfile.detect(landscape, platform: TargetPlatform.iOS),
+        DuoDeviceProfile.iPhoneDuo,
+      );
+      expect(
+        DuoDeviceProfile.detect(portrait, platform: TargetPlatform.iOS),
+        DuoDeviceProfile.iPhoneDuo,
+      );
+      expect(
+        DuoDeviceProfile.detect(landscape, platform: TargetPlatform.android),
+        isNull,
+      );
+      expect(
+        DuoDeviceProfile.detect(cover, platform: TargetPlatform.iOS),
+        DuoDeviceProfile.iPhoneDuoCover,
+      );
+      expect(
+        DuoDeviceProfile.detect(
+          landscape.copyWith(size: const Size(800, 669)),
+          platform: TargetPlatform.iOS,
+        ),
+        isNull,
+      );
+    });
+
+    test('places the crease at the screen centre', () {
+      final DuoDisplayFeature crease = DuoDeviceProfile.iPhoneDuo
+          .displayFeatures(landscape.size)
+          .single;
+      expect(crease.bounds, const Rect.fromLTWH(475.5, 0, 0, 669));
+      expect(crease.state, DisplayFeatureState.unknown);
+      expect(
+        DuoDeviceProfile.iPhoneDuoCover.displayFeatures(cover.size),
+        isEmpty,
+      );
+    });
+
+    test('uses the side system region for controls only in landscape', () {
+      expect(
+        DuoDeviceProfile.iPhoneDuo.chromeLayout(landscape),
+        DuoChromeLayout.rightRail,
+      );
+      expect(DuoDeviceProfile.iPhoneDuo.chromeLayout(portrait), isNull);
+    });
+
+    testWidgets('shares the system strip and splits panes at the crease', (
+      WidgetTester tester,
+    ) async {
+      const Key primaryKey = ValueKey('primary');
+      const Key secondaryKey = ValueKey('secondary');
+      const Key menuKey = ValueKey('menu');
+      DuoChromeInfo? chrome;
+      await tester.binding.setSurfaceSize(landscape.size);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: landscape,
+            child: DuoDeviceScope(
+              profile: DuoDeviceProfile.iPhoneDuo,
+              child: DuoScaffold(
+                leadingAction: DuoAction(
+                  id: 'menu',
+                  label: 'Menu',
+                  icon: const Icon(Icons.menu, key: menuKey),
+                  onPressed: () {},
+                ),
+                bodyBuilder: (BuildContext context, DuoChromeInfo info) {
+                  chrome = info;
+                  return const DuoBody(
+                    primary: SizedBox.expand(key: primaryKey),
+                    secondary: SizedBox.expand(key: secondaryKey),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(chrome!.layout, DuoChromeLayout.rightRail);
+      expect(chrome!.contentSize.width, 867);
+      expect(tester.getRect(find.byKey(primaryKey)).right, 475.5);
+      expect(tester.getRect(find.byKey(secondaryKey)).left, 475.5);
+      expect(tester.getRect(find.byKey(secondaryKey)).right, 867);
+      final Offset menu = tester.getCenter(find.byKey(menuKey));
+      expect(menu.dx, closeTo(909, 0.5));
+      expect(menu.dy, greaterThan(104));
+    });
+
+    testWidgets('moves narrow cover controls into the system strip', (
+      WidgetTester tester,
+    ) async {
+      DuoChromeInfo? chrome;
+      await tester.binding.setSurfaceSize(cover.size);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: cover,
+            child: DuoDeviceScope(
+              profile: DuoDeviceProfile.iPhoneDuoCover,
+              child: DuoScaffold(
+                appBar: AppBar(title: const Text('Page')),
+                bodyBuilder: (BuildContext context, DuoChromeInfo info) {
+                  chrome = info;
+                  return const SizedBox.expand();
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(chrome!.layout, DuoChromeLayout.rightRail);
+      expect(chrome!.contentSize.width, 382);
+      expect(find.byType(AppBar), findsNothing);
+    });
+
+    testWidgets('a null scope disables detection', (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      late DuoDeviceProfile? detected;
+      late DuoDeviceProfile? disabled;
+      await tester.pumpWidget(
+        MediaQuery(
+          data: landscape,
+          child: Builder(
+            builder: (BuildContext context) {
+              detected = DuoDeviceProfile.of(context);
+              return DuoDeviceScope(
+                profile: null,
+                child: Builder(
+                  builder: (BuildContext context) {
+                    disabled = DuoDeviceProfile.of(context);
+                    return const SizedBox();
+                  },
+                ),
+              );
+            },
+          ),
+        ),
+      );
+      expect(detected, DuoDeviceProfile.iPhoneDuo);
+      expect(disabled, isNull);
+      debugDefaultTargetPlatformOverride = null;
+    });
   });
 
   testWidgets('keeps inactive compact pane mounted while changing panes', (
@@ -337,9 +538,8 @@ void main() {
             bodyBuilder: (context, _) => TextButton(
               onPressed: () {
                 expect(Scaffold.of(context), same(scaffoldKey.currentState));
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('Saved')));
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(const SnackBar(content: Text('Saved')));
               },
               child: const Text('Save'),
             ),

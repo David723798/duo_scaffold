@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
 
+import 'duo_device.dart';
 import 'duo_layout.dart';
 import 'duo_safe_area.dart';
 
@@ -47,6 +48,11 @@ class DuoBody extends StatelessWidget {
 
   /// Forces a layout, primarily for previews and tests.
   final DuoLayout? layoutOverride;
+
+  /// Display features in screen coordinates.
+  ///
+  /// Defaults to [MediaQueryData.displayFeatures], or the crease of a
+  /// recognised [DuoDeviceProfile] when the platform reports none.
   final Iterable<DuoDisplayFeature>? displayFeatures;
   final DuoPane compactPane;
   final Widget? tabletopTop;
@@ -66,8 +72,7 @@ class DuoBody extends StatelessWidget {
     final MediaQueryData mediaQuery = MediaQuery.of(context);
     final EdgeInsets insets = _safeInsets(mediaQuery);
     final Iterable<DuoDisplayFeature> features =
-        displayFeatures ??
-        mediaQuery.displayFeatures.map(DuoDisplayFeature.fromDisplayFeature);
+        displayFeatures ?? DuoDeviceProfile.displayFeaturesOf(context);
     final Widget content = LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final Iterable<DuoDisplayFeature> localFeatures = features.map(
