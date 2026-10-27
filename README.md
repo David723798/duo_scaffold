@@ -11,10 +11,22 @@ Try the interactive Mail example on GitHub Pages: [Demo](https://david723798.git
 
 ## Screenshots
 
-| Compact portrait | Expanded landscape |
+The Mail example on [iPhone Duo](#iphone-duo). The package detects each of these six postures on its own; book and tabletop come from the hinge on iOS 27.1 and later.
+
+| Cover display, portrait | Cover display, landscape |
 | --- | --- |
-| On compact screens, the Mail example presents one pane at a time with familiar top-and-bottom controls. | On wider displays, it keeps both the message list and selected message visible, and moves controls to a physical side rail. |
-| ![Compact portrait Mail example](assets/screenshots/compact-portrait.png) | ![Expanded landscape Mail example](assets/screenshots/expanded-landscape.png) |
+| One pane, with the rail in the camera and status strip on the right. | The cover rotates; the strip moves to the left edge, and the rail moves with it. |
+| ![Mail example on iPhone Duo's cover display in portrait](assets/screenshots/iphone-duo-cover-portrait.png) | ![Mail example on iPhone Duo's cover display in landscape](assets/screenshots/iphone-duo-cover-landscape.png) |
+
+| Inner display, landscape | Inner display, portrait |
+| --- | --- |
+| The message list and selected message meet at the crease, and the rail sits in the status strip. | One pane at a time, with the rail in the same strip. |
+| ![Mail example on iPhone Duo's inner display in landscape](assets/screenshots/iphone-duo-inner-landscape.png) | ![Mail example on iPhone Duo's inner display in portrait](assets/screenshots/iphone-duo-inner-portrait.png) |
+
+| Half-open, book | Half-open, tabletop |
+| --- | --- |
+| Two panes either side of a vertical hinge. | The message above a horizontal hinge, its attachments below. |
+| ![Mail example on iPhone Duo half-open as a book](assets/screenshots/iphone-duo-book.png) | ![Mail example on iPhone Duo half-open as a tabletop](assets/screenshots/iphone-duo-tabletop.png) |
 
 ## Install
 
@@ -74,12 +86,13 @@ On compact layouts, `compactPane` selects the visible pane. On expanded landscap
 
 ## iPhone Duo
 
-iOS does not report display features to Flutter, so `duo_scaffold` recognises iPhone Duo's inner display (951 × 669 logical pixels at 3×) and its portrait cover display (466 × 678), and fills in what the platform leaves out:
+iOS does not report display features to Flutter, so `duo_scaffold` recognises iPhone Duo's inner display (951 × 669 logical pixels at 3×) and its cover display (466 × 678 in portrait), and fills in what the platform leaves out:
 
-- **Crease.** `DuoBody` and `DuoDeviceProfile.displayFeaturesOf(context)` supply the vertical crease at the screen centre. Expanded landscape panes meet at the crease instead of at the middle of the remaining content area. The hinge angle is not available, so the crease never selects book or tabletop on its own.
-- **Shared control region.** On the inner display in landscape, and always on the cover, iOS reserves a full-height strip on the right for the camera and status bar. `DuoScaffold` places its rail inside that strip, below the status cluster, instead of beside it. On the cover this applies even though the display is narrower than `sideRailBreakpoint`, so the page gets the full height instead of an app bar and bottom bar squeezed beside the strip.
+- **Crease.** `DuoBody` and `DuoDeviceProfile.displayFeaturesOf(context)` supply the crease at the screen centre: vertical in landscape, horizontal in portrait. Expanded landscape panes meet at the crease instead of at the middle of the remaining content area.
+- **Hinge.** On iOS 27.1 and later, the package's iOS plugin observes the hinge with `UIHingeInteraction`. While the hinge is partially open the crease is half-opened, so the inner display selects `DuoLayout.book` in landscape and `DuoLayout.tabletop` in portrait; fully open, it returns to expanded landscape or portrait. On earlier iOS releases the hinge is unknown and the crease only places the split. `DuoScaffold` and `DuoBody` listen to `DuoHingeMonitor.platform` automatically; read the current reading with `DuoHingeScope.of(context)`, or wrap a subtree in `DuoHingeScope` with your own `ValueNotifier<DuoHinge?>` to simulate a posture.
+- **Shared control region.** On the inner display in landscape, and always on the cover, iOS reserves a full-height strip for the camera and status bar. `DuoScaffold` places its rail inside that strip, below the status cluster, instead of beside it. The strip is on the right of the inner display. The cover rotates, and its strip follows the camera: on the right in portrait and on the left in landscape, with the rail following it to the same edge. On the cover the rail is used even though the display is narrower than `sideRailBreakpoint`, so the page gets the full height instead of an app bar and bottom bar squeezed beside the strip.
 
-Detection only matches a full-screen window on iOS. Wrap a subtree in `DuoDeviceScope` to override detection, for example `DuoDeviceScope(profile: null, child: ...)` to disable it, or `DuoDeviceScope(profile: DuoDeviceProfile.iPhoneDuo, child: ...)` to force it (`DuoDeviceProfile.iPhoneDuoCover` for the cover). An explicit `platformLayout` or `chromeLayout` still takes precedence over the device's rail edge.
+Together these give the six iPhone Duo layouts with no configuration: the cover in portrait and landscape, the inner display flat in landscape and portrait, and half-open as a book or tabletop. Detection only matches a full-screen window on iOS. Wrap a subtree in `DuoDeviceScope` to override detection, for example `DuoDeviceScope(profile: null, child: ...)` to disable it, or `DuoDeviceScope(profile: DuoDeviceProfile.iPhoneDuo, child: ...)` to force it (`DuoDeviceProfile.iPhoneDuoCover` for the cover). An explicit `platformLayout` or `chromeLayout` still takes precedence over the device's rail edge.
 
 ## Choose the right widget
 

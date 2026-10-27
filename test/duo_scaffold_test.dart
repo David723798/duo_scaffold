@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:duo_scaffold/duo_scaffold.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -264,6 +265,128 @@ void main() {
       expect(chrome!.layout, DuoChromeLayout.rightRail);
       expect(chrome!.contentSize.width, 382);
       expect(find.byType(AppBar), findsNothing);
+    });
+
+    test('takes the crease posture from the hinge', () {
+      const DuoHinge halfOpen = DuoHinge(status: DuoHingeStatus.partiallyOpen);
+      const DuoHinge flat = DuoHinge(status: DuoHingeStatus.fullyOpen);
+      final DuoDisplayFeature book = DuoDeviceProfile.iPhoneDuo
+          .displayFeatures(landscape.size, hinge: halfOpen)
+          .single;
+      final DuoDisplayFeature tabletop = DuoDeviceProfile.iPhoneDuo
+          .displayFeatures(portrait.size, hinge: halfOpen)
+          .single;
+      expect(
+        policy.resolve(landscape.size, displayFeatures: [book]).layout,
+        DuoLayout.book,
+      );
+      expect(
+        policy.resolve(portrait.size, displayFeatures: [tabletop]).layout,
+        DuoLayout.tabletop,
+      );
+      expect(
+        DuoDeviceProfile.iPhoneDuo
+            .displayFeatures(landscape.size, hinge: flat)
+            .single
+            .state,
+        DisplayFeatureState.postureFlat,
+      );
+    });
+
+    testWidgets('detects book and tabletop from the hinge scope', (
+      WidgetTester tester,
+    ) async {
+      final ValueNotifier<DuoHinge?> hinge = ValueNotifier<DuoHinge?>(null);
+      addTearDown(hinge.dispose);
+      DuoLayout? layout;
+      Widget app(MediaQueryData data) => MaterialApp(
+        home: MediaQuery(
+          data: data,
+          child: DuoDeviceScope(
+            profile: DuoDeviceProfile.iPhoneDuo,
+            child: DuoHingeScope(
+              notifier: hinge,
+              child: Builder(
+                builder: (BuildContext context) {
+                  layout = policy
+                      .resolve(
+                        data.size,
+                        displayFeatures: DuoDeviceProfile.displayFeaturesOf(
+                          context,
+                        ),
+                      )
+                      .layout;
+                  return const SizedBox();
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpWidget(app(landscape));
+      expect(layout, DuoLayout.expandedLandscape);
+      hinge.value = const DuoHinge(status: DuoHingeStatus.partiallyOpen);
+      await tester.pump();
+      expect(layout, DuoLayout.book);
+      await tester.pumpWidget(app(portrait));
+      expect(layout, DuoLayout.tabletop);
+      hinge.value = const DuoHinge(status: DuoHingeStatus.fullyOpen);
+      await tester.pump();
+      expect(layout, DuoLayout.expandedPortrait);
+    });
+
+    testWidgets('reads the platform hinge on iOS', (WidgetTester tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      const MethodChannel channel = MethodChannel('duo_scaffold/hinge');
+      final List<String> calls = <String>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+        MethodCall call,
+      ) async {
+        calls.add(call.method);
+        return null;
+      });
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          channel,
+          null,
+        ),
+      );
+      DuoHinge? seen;
+      await tester.pumpWidget(
+        DuoHingeScope(
+          notifier: DuoHingeMonitor.platform,
+          child: Builder(
+            builder: (BuildContext context) {
+              seen = DuoHingeScope.of(context);
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+      expect(calls, <String>['start']);
+
+      await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+        channel.name,
+        channel.codec.encodeMethodCall(
+          const MethodCall('hingeChanged', <String, Object>{
+            'status': 2,
+            'angle': 1.5,
+          }),
+        ),
+        (_) {},
+      );
+      await tester.pump();
+      expect(
+        seen,
+        const DuoHinge(status: DuoHingeStatus.partiallyOpen, angle: 1.5),
+      );
+
+      await tester.pumpWidget(const SizedBox());
+      expect(calls, <String>['start', 'stop']);
+      expect(DuoHingeMonitor.platform.value, isNull);
+      debugDefaultTargetPlatformOverride = null;
     });
 
     testWidgets('a null scope disables detection', (tester) async {

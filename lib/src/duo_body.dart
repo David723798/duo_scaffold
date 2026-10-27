@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
 
 import 'duo_device.dart';
+import 'duo_hinge.dart';
 import 'duo_layout.dart';
 import 'duo_safe_area.dart';
 
@@ -68,7 +69,9 @@ class DuoBody extends StatelessWidget {
   final bool maintainBottomViewPadding;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => DuoHingeScope.ensure(context, _build);
+
+  Widget _build(BuildContext context) {
     final MediaQueryData mediaQuery = MediaQuery.of(context);
     final EdgeInsets insets = _safeInsets(mediaQuery);
     final Iterable<DuoDisplayFeature> features =

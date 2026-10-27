@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import 'duo_device.dart';
+import 'duo_hinge.dart';
 
 /// Where adaptive application controls are displayed.
 ///
@@ -263,7 +264,9 @@ class DuoScaffold extends StatelessWidget {
   topAndBottomBuilder;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => DuoHingeScope.ensure(context, _build);
+
+  Widget _build(BuildContext context) {
     assert(() {
       _validateActionIds(actions, 'actions');
       _validateActionIds(footerActions, 'footerActions');

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import 'duo_chrome.dart';
+import 'duo_hinge.dart';
 import 'duo_layout.dart';
 
 /// Layout facts for hardware that Flutter does not describe on its own.
@@ -39,8 +40,9 @@ class DuoDeviceProfile {
 
   /// The cover display of iPhone Duo.
   ///
-  /// The cover stays in portrait, and iOS reserves a full-height strip on its
-  /// right for the camera and a stacked status cluster.
+  /// iOS reserves a full-height strip for the camera and a stacked status
+  /// cluster. The cover rotates, and the strip follows the camera: on the
+  /// right in portrait and on the left in landscape.
   static const DuoDeviceProfile iPhoneDuoCover = DuoDeviceProfile(
     name: 'iPhone Duo cover',
     landscapeSize: Size(678, 466),
@@ -95,12 +97,16 @@ class DuoDeviceProfile {
 
   /// Display features from [MediaQuery], or this device's crease when the
   /// platform reports none.
+  ///
+  /// The crease takes its posture from the [DuoHingeScope] in scope, so a
+  /// partially open iPhone Duo selects book or tabletop.
   static Iterable<DuoDisplayFeature> displayFeaturesOf(BuildContext context) {
     final MediaQueryData data = MediaQuery.of(context);
     if (data.displayFeatures.isNotEmpty) {
       return data.displayFeatures.map(DuoDisplayFeature.fromDisplayFeature);
     }
-    return of(context)?.displayFeatures(data.size) ??
+    return of(context)
+            ?.displayFeatures(data.size, hinge: DuoHingeScope.of(context)) ??
         const <DuoDisplayFeature>[];
   }
 
@@ -115,10 +121,12 @@ class DuoDeviceProfile {
 
   /// The crease in screen coordinates.
   ///
-  /// The posture is reported as unknown because Flutter cannot read the hinge
-  /// angle on iOS. [DuoLayoutPolicy] uses such a crease to place the split of
-  /// an expanded landscape layout, not to select book or tabletop.
-  List<DuoDisplayFeature> displayFeatures(Size screenSize) {
+  /// The posture comes from [hinge]. A partially open hinge makes the crease
+  /// half-opened, so [DuoLayoutPolicy] selects book when it is vertical and
+  /// tabletop when it is horizontal. Without a hinge reading the posture is
+  /// unknown, and the crease only places the split of an expanded landscape
+  /// layout.
+  List<DuoDisplayFeature> displayFeatures(Size screenSize, {DuoHinge? hinge}) {
     final double? creaseWidth = this.creaseWidth;
     if (creaseWidth == null) return const <DuoDisplayFeature>[];
     final bool landscape = screenSize.width >= screenSize.height;
@@ -141,7 +149,7 @@ class DuoDeviceProfile {
         type: creaseWidth > 0
             ? DisplayFeatureType.hinge
             : DisplayFeatureType.fold,
-        state: DisplayFeatureState.unknown,
+        state: hinge?.displayFeatureState ?? DisplayFeatureState.unknown,
       ),
     ];
   }
