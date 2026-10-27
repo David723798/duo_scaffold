@@ -1,6 +1,6 @@
 name: duo_scaffold
 description: An adaptive Material scaffold with fold-aware Flutter layout primitives.
-version: 0.3.1
+version: 0.3.2
 repository: https://github.com/David723798/duo_scaffold.git
 topics:
   - flutter
@@ -15,6 +15,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
 
 dev_dependencies:
   flutter_test:
@@ -28,8 +30,19 @@ dev_dependencies:
 flutter:
   plugin:
     platforms:
+      android:
+        dartPluginClass: DuoScaffoldPlugin
       ios:
         pluginClass: DuoScaffoldPlugin
+      linux:
+        dartPluginClass: DuoScaffoldPlugin
+      macos:
+        dartPluginClass: DuoScaffoldPlugin
+      web:
+        pluginClass: DuoScaffoldPlugin
+        fileName: duo_scaffold.dart
+      windows:
+        dartPluginClass: DuoScaffoldPlugin
 
   # To add assets to your package, add an assets section, like this:
   # assets:
